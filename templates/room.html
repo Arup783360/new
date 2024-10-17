@@ -1,48 +1,36 @@
-{% extends 'base.html' %}
-{% block content %}
-<div class="message-box">
-    <h2>Chat Room Code: {{ code }}</h2>
-    <div class="messages" id="messages"></div>
-    <div class="inputs">
-        <input type="text" rows="3" placeholder="Message" name="message" id="message"/>
-        <button type="button" name="send" id="send-btn" onclick="SendMessage()" class="send-btn">SEND</button>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Room</title>
+    <link rel="stylesheet" href="static/style.css">
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="chat-container">
+        <h2>Chat Room: {{ room_code }}</h2>
+        <div id="messages"></div>
+        <input id="message-input" placeholder="Type your message...">
+        <button id="send-button">Send</button>
     </div>
-</div>
-<script type="text/javascript">
-    var socketio = io(); // Directly connects to the socket associated with our flask website.
 
-    const messages = document.getElementById("messages")
+    <script>
+        const socket = io();
 
-    const createMessage = (name, msg) => {
-        const content = `
-            <div class="text">
-                <span>
-                    <strong>${name}</strong>: ${msg}
-                </span>
-                <span class="muted">
-                    ${new Date().toLocaleString()}
-                </span>
-            </div>
-        `;
-        messages.innerHTML += content;
-    };
+        const roomCode = "{{ room_code }}";
+        socket.emit('join', { room: roomCode });
 
-    socketio.on("message", (data) => {
-        createMessage(data.name, data.message);
-    });
+        document.getElementById('send-button').onclick = function() {
+            const msg = document.getElementById('message-input').value;
+            socket.emit('message', { msg: msg });
+            document.getElementById('message-input').value = '';
+        };
 
-    const SendMessage = () => {
-        const message = document.getElementById("message")
-        if (message.value == "") return;
-        socketio.emit("message", { data: message.value })
-        message.value = "";
-    };
-</script>
-
-{% for msg in messages %}
-    <script type="text/javascript">
-        createMessage("{{ msg.name }}", "{{ msg.message }}");
+        socket.on('message', function(data) {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML += `<p>${data.msg}</p>`;
+        });
     </script>
-{% endfor %}
-
-{% endblock %}
+</body>
+</html>
