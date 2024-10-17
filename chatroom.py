@@ -1,57 +1,46 @@
-from flask import Flask, render_template, redirect, url_for, request, session
+from flask import Flask, render_template, request, redirect, url_for, session
 from flask_socketio import SocketIO, emit
-import random
-import string
+from werkzeug.utils import secure_filename
+import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret!'
+app.secret_key = 'your_secret_key'  # Replace with a random secret key
 socketio = SocketIO(app)
 
-rooms = {}  # Dictionary to hold room information
+# In-memory storage for rooms and users
+rooms = {}
+users = {}
 
-def generate_unique_code(length):
-    """Generate a unique room code."""
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
-
-@app.route("/", methods=["POST", "GET"])
+@app.route('/')
 def home():
-    session.clear()  # Clear session for fresh login
-    if request.method == "POST":
-        name = request.form.get("name")
-        password = request.form.get("password")
+    return render_template('home.html')
 
-        if not name or not password:
-            return render_template("home.html", error="Please enter a name and password.")
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        if username in users and users[username] == password:
+            session['username'] = username
+            return redirect(url_for('chat', room_code=username))
+        return 'Invalid credentials', 401
+    return render_template('login.html')
 
-        if password != name:  # Check if password matches the name
-            return render_template("home.html", error="Password must match your name.")
+@app.route('/chat/<room_code>', methods=['GET', 'POST'])
+def chat(room_code):
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('room.html', room_code=room_code)
 
-        room = generate_unique_code(4)
-        rooms[room] = {"members": 0, "messages": []}
-
-        session["room"] = room
-        session["name"] = name
-        return redirect(url_for("room"))
-
-    return render_template("home.html")
-
-@app.route("/room")
-def room():
-    room = session.get("room")
-    if room is None or session.get("name") is None or room not in rooms:
-        return redirect(url_for("home"))
-    return render_template("room.html", code=room, messages=rooms[room]["messages"])
-
-@socketio.on("message")
+@socketio.on('message')
 def handle_message(data):
-    room = session.get("room")
-    if room in rooms:
-        msg = {
-            "name": session.get("name"),
-            "message": data['data']
-        }
-        rooms[room]["messages"].append(msg)
-        emit("message", msg, broadcast=True)
+    emit('message', data, broadcast=True)
 
-if __name__ == "__main__":
+@socketio.on('join')
+def on_join(data):
+    room = data['room']
+    username = session['username']
+    emit('message', {'msg': f'{username} has joined the room.'}, room=room)
+
+if __name__ == '__main__':
     socketio.run(app, debug=True)
