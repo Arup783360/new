@@ -6,7 +6,10 @@ app.secret_key = 'your_secret_key'  # Replace with a random secret key
 socketio = SocketIO(app)
 
 # In-memory storage for users
-users = {}
+users = {
+    'arup': 'sarkar',
+    'tol': 'mandal'
+}
 
 @app.route('/')
 def home():
@@ -17,10 +20,11 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+        # Check if the username exists and the password matches
         if username in users and users[username] == password:
             session['username'] = username
             return redirect(url_for('chat', room_code=username))
-        return 'Invalid credentials', 401
+        return 'Invalid credentials', 401  # Respond with an error message
     return render_template('login.html')
 
 @app.route('/chat/<room_code>', methods=['GET', 'POST'])

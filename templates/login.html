@@ -14,6 +14,9 @@
             <input type="password" name="password" placeholder="Password" required>
             <button type="submit">Login</button>
         </form>
+        {% if request.method == 'POST' %}
+            <p style="color: red;">Invalid credentials. Please try again.</p>
+        {% endif %}
     </div>
 </body>
 </html>
